@@ -39,17 +39,18 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const currentCategory = categories.find(cat => cat.id === task.category);
 
   const handleSave = () => {
+    
     if (editText.trim()) {
-      onEdit(task.id, {
+        onEdit(task.id, {
         text: editText.trim(),
         description: editDescription.trim(),
         priority: editPriority,
         scheduledFor: editScheduledFor || null,
         estimatedHours: editEstimatedHours ? parseFloat(editEstimatedHours) : null,
         category: editCategory
-      });
+        });
     }
-  };
+    };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

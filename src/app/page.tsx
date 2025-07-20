@@ -2,19 +2,21 @@
 
 import React, { useEffect, useState } from 'react';
 import { Undo, Redo, Folder } from 'lucide-react';
+import { Auth } from '../components/Auth';
 import { useTaskManager } from '../hooks/useTaskManager';
 import { TaskForm } from '../components/TaskForm';
 import { TaskItem } from '../components/TaskItem';
 import { CategoryManager } from '../components/CategoryManager';
 import { FilterType } from '../types/task';
 
-export default function Home() {
+function TaskManagerApp() {
   const {
     tasks,
     categories,
     currentFilter,
     editingTaskId,
     stats,
+    loading,
     canUndo,
     canRedo,
     addTask,
@@ -57,13 +59,24 @@ export default function Home() {
     { id: 'high', label: 'High Priority' }
   ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading your tasks...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-200">
       {/* Header */}
       <header className="bg-primary dark:bg-primary-dark shadow-lg">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-white">Temanmu</h1>
-          <p className="text-purple-100 mt-2">Hadir untuk membantu hari mu</p>
+          <h1 className="text-3xl font-bold text-white">Task Manager</h1>
+          <p className="text-purple-100 mt-2">Stay organized and productive</p>
         </div>
       </header>
 
@@ -131,24 +144,6 @@ export default function Home() {
               <Folder className="w-4 h-4" />
               Categories
             </button>
-            <button 
-              onClick={undo}
-              disabled={!canUndo}
-              className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
-              title="Undo last action (Ctrl+Z)"
-            >
-              <Undo className="w-4 h-4" />
-              Undo
-            </button>
-            <button 
-              onClick={redo}
-              disabled={!canRedo}
-              className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
-              title="Redo last undone action (Ctrl+Y)"
-            >
-              <Redo className="w-4 h-4" />
-              Redo
-            </button>
           </div>
         </div>
 
@@ -199,5 +194,13 @@ export default function Home() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Auth>
+      <TaskManagerApp />
+    </Auth>
   );
 }

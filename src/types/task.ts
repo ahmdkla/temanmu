@@ -1,5 +1,6 @@
 export interface Task {
   id: number;
+  dbId?: string; // Add this for Supabase UUID
   text: string;
   description: string;
   completed: boolean;
