@@ -191,6 +191,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ categories, onAddTask }) => 
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Time (optional - defaults to 9:00 AM if not specified):
+                  Press clock icon for assist
                 </label>
                 <input 
                   type="time" 
