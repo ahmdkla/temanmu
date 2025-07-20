@@ -1,3 +1,5 @@
+import dayjs from 'dayjs';
+
 export interface ScheduleOption {
   label: string;
   value: string;
@@ -5,57 +7,53 @@ export interface ScheduleOption {
 }
 
 export const getScheduleOptions = (): ScheduleOption[] => {
-  const now = new Date();
+  const now = dayjs();
   
-  // Today at 5 PM
-  const today = new Date(now);
-  today.setHours(17, 0, 0, 0);
+  // Today (date only, local time)
+  const today = now
+  const todayString = today.format('YYYY-MM-DD')
   
-  // Tomorrow at 9 AM
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(9, 0, 0, 0);
+  // Tomorrow (date only, local time)
+  const tomorrow = now.add(1, 'day')
+  const tomorrowString = tomorrow.format('YYYY-MM-DD')
   
-  // Next Monday at 9 AM
-  const nextMonday = new Date(now);
-  const daysUntilMonday = (1 + 7 - nextMonday.getDay()) % 7 || 7;
-  nextMonday.setDate(nextMonday.getDate() + daysUntilMonday);
-  nextMonday.setHours(9, 0, 0, 0);
-  
-  // Next month, same date at 9 AM
-  const nextMonth = new Date(now);
-  nextMonth.setMonth(nextMonth.getMonth() + 1);
-  nextMonth.setHours(9, 0, 0, 0);
-  
-  const formatDateTime = (date: Date) => {
-    return date.toISOString().slice(0, 16);
-  };
+  // Next Week (date only, local time)
+  const nextWeek = now.add(1, 'week')
+  const nextWeekString = nextWeek.format('YYYY-MM-DD')
+
+  // Next month, same date (date only, local time)
+  const nextMonth = now.add(1, 'month')
+  const nextMonthString = nextMonth.format('YYYY-MM-DD')
+
 
   return [
     {
       label: 'Today',
-      value: formatDateTime(today),
-      description: 'Today at 5:00 PM'
+      value: todayString,
+      description: today.format('MMM D')
     },
     {
       label: 'Tomorrow',
-      value: formatDateTime(tomorrow),
-      description: 'Tomorrow at 9:00 AM'
+      value: tomorrowString,
+      description: tomorrow.format('MMM D')
     },
     {
       label: 'Next Week',
-      value: formatDateTime(nextMonday),
-      description: 'Next Monday at 9:00 AM'
+      value: nextWeekString,
+      description: nextWeek.format('MMM D')
     },
     {
       label: 'Next Month',
-      value: formatDateTime(nextMonth),
-      description: `${nextMonth.toLocaleDateString([], { month: 'short', day: 'numeric' })} at 9:00 AM`
+      value: nextMonthString,
+      description: nextMonth.format('MMM D')
     }
   ];
 };
 
+export const getMinDate = (): string => {
+  return dayjs().format('YYYY-MM-DD') // contoh: '2025-07-20'
+}
+
 export const getMinDateTime = (): string => {
-  const now = new Date();
-  return now.toISOString().slice(0, 16);
-};
+  return dayjs().format('YYYY-MM-DDTHH:mm') // contoh: '2025-07-20T21:45'
+}

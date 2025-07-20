@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { Task, Category } from '../types/task';
-import { getScheduleOptions, getMinDateTime } from '../utils/scheduleUtils';
+import { getScheduleOptions, getMinDate, getMinDateTime } from '../utils/scheduleUtils';
 
 interface TaskFormProps {
   categories: Category[];
@@ -14,41 +14,57 @@ export const TaskForm: React.FC<TaskFormProps> = ({ categories, onAddTask }) => 
   const [text, setText] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
-  const [scheduledFor, setScheduledFor] = useState('');
+  const [scheduledDate, setScheduledDate] = useState(''); // Date only
+  const [scheduledTime, setScheduledTime] = useState(''); // Time only
   const [estimatedHours, setEstimatedHours] = useState('');
   const [category, setCategory] = useState('general');
   const [showCustomDate, setShowCustomDate] = useState(false);
 
   const scheduleOptions = getScheduleOptions();
+  const minDate = getMinDate();
   const minDateTime = getMinDateTime();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (text.trim()) {
+      // Combine date and time if both are provided
+      let finalScheduledFor = null;
+      if (scheduledDate) {
+        if (scheduledTime) {
+          finalScheduledFor = `${scheduledDate}T${scheduledTime}`;
+        } else {
+          // If only date is provided, set default time to 09:00
+          finalScheduledFor = `${scheduledDate}T09:00`;
+        }
+      }
+
       onAddTask({
         text: text.trim(),
         description: description.trim(),
         completed: false,
         priority,
-        scheduledFor: scheduledFor || null,
+        scheduledFor: finalScheduledFor,
         estimatedHours: estimatedHours ? parseFloat(estimatedHours) : null,
         category
       });
 
+      // Reset form
       setText('');
       setDescription('');
       setPriority('medium');
-      setScheduledFor('');
+      setScheduledDate('');
+      setScheduledTime('');
       setEstimatedHours('');
       setCategory('general');
       setShowCustomDate(false);
     }
   };
 
-  const handleQuickSchedule = (value: string) => {
-    setScheduledFor(value);
+  const handleQuickSchedule = (dateValue: string) => {
+    setScheduledDate(dateValue);
     setShowCustomDate(false);
+    // Don't set time - let user choose
   };
 
   return (
@@ -103,64 +119,106 @@ export const TaskForm: React.FC<TaskFormProps> = ({ categories, onAddTask }) => 
           </select>
         </div>
         
-        {/* Quick Schedule */}
+        {/* Schedule Section */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Schedule
           </label>
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {scheduleOptions.map(option => (
-                <button
-                  key={option.label}
-                  type="button"
-                  onClick={() => handleQuickSchedule(option.value)}
-                  className={`px-3 py-2 text-sm rounded-lg border transition-colors duration-200 ${
-                    scheduledFor === option.value
-                      ? 'bg-primary text-white border-primary'
-                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  <div className="font-medium">{option.label}</div>
-                  <div className="text-xs opacity-75">{option.description}</div>
-                </button>
-              ))}
+          <div className="space-y-4">
+            {/* Quick Date Options */}
+            <div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Quick date selection:</div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {scheduleOptions.map(option => (
+                    <button
+                        key={option.label}
+                        type="button"
+                        onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleQuickSchedule(option.value);
+                        }}
+                        className={`px-3 py-2 text-sm rounded-lg border transition-colors duration-200 ${
+                        scheduledDate === option.value
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                        }`}
+                    >
+                        <div className="font-medium">{option.label}</div>
+                        <div className="text-xs opacity-75">{option.description}</div>
+                    </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Custom Date Picker Button */}
+            <div>
               <button
                 type="button"
-                onClick={() => setShowCustomDate(!showCustomDate)}
-                className={`px-3 py-2 text-sm rounded-lg border transition-colors duration-200 flex items-center gap-2 ${
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowCustomDate(!showCustomDate);
+                }}
+                className={`px-4 py-2 text-sm rounded-lg border transition-colors duration-200 flex items-center gap-2 ${
                   showCustomDate
                     ? 'bg-primary text-white border-primary'
                     : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                 }`}
               >
                 <Calendar className="w-4 h-4" />
-                Custom Date
+                Pick Custom Date
               </button>
             </div>
 
+            {/* Custom Date Picker */}
             {showCustomDate && (
-              <div className="p-3 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg">
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Select Date:
+                </label>
                 <input 
-                  type="datetime-local" 
-                  value={scheduledFor}
-                  onChange={(e) => setScheduledFor(e.target.value)}
-                  min={minDateTime}
+                  type="date" 
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  min={minDate}
                   className="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-800 dark:text-white"
                 />
               </div>
             )}
 
-            {scheduledFor && (
+            {/* Time Picker (shows when date is selected) */}
+            {scheduledDate && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Time (optional - defaults to 9:00 AM if not specified):
+                </label>
+                <input 
+                  type="time" 
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  className="w-full sm:w-48 px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+                />
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Selected: {scheduledDate} {scheduledTime ? `at ${scheduledTime}` : 'at 9:00 AM (default)'}
+                </div>
+              </div>
+            )}
+
+            {/* Clear Schedule */}
+            {scheduledDate && (
               <button
                 type="button"
-                onClick={() => {
-                  setScheduledFor('');
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setScheduledDate('');
+                  setScheduledTime('');
                   setShowCustomDate(false);
                 }}
-                className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                className="text-sm text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium"
               >
-                Clear schedule
+                ✕ Clear schedule
               </button>
             )}
           </div>
