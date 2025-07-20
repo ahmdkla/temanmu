@@ -96,7 +96,7 @@ export const Auth: React.FC<AuthProps> = ({ children }) => {
       <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Sign up</p>
         </div>
       </div>
     );
@@ -142,7 +142,7 @@ export const Auth: React.FC<AuthProps> = ({ children }) => {
                 type="submit"
                 className="w-full px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors duration-200 disabled:opacity-50"
               >
-                {authLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+                {authLoading ? 'Sign up' : (isSignUp ? 'Sign Up' : 'Sign In')}
               </button>
             </form>
             
