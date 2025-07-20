@@ -1,13 +1,15 @@
 "use client";
-
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import React, { useState } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { Task, Category } from '../types/task';
 import { getScheduleOptions, getMinDate, getMinDateTime } from '../utils/scheduleUtils';
+dayjs.extend(customParseFormat);
 
 interface TaskFormProps {
   categories: Category[];
-  onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
+  onAddTask: (task: Omit<Task, 'id' | 'createdAt' | "sortOrder">) => void;
 }
 
 export const TaskForm: React.FC<TaskFormProps> = ({ categories, onAddTask }) => {
@@ -30,23 +32,21 @@ export const TaskForm: React.FC<TaskFormProps> = ({ categories, onAddTask }) => 
     if (text.trim()) {
       // Combine date and time if both are provided
       let finalScheduledFor = null;
-      if (scheduledDate) {
-        if (scheduledTime) {
-          finalScheduledFor = `${scheduledDate}T${scheduledTime}`;
-        } else {
-          // If only date is provided, set default time to 09:00
-          finalScheduledFor = `${scheduledDate}T09:00`;
-        }
+      if (scheduledTime) {
+        finalScheduledFor = dayjs(`${scheduledDate} ${scheduledTime}`, 'YYYY-MM-DD HH:mm').format();
+      } else {
+        // Default time to 09:00 if only date is provided
+        finalScheduledFor = dayjs(`${scheduledDate} 09:00`, 'YYYY-MM-DD HH:mm').format();
       }
 
       onAddTask({
-        text: text.trim(),
-        description: description.trim(),
-        completed: false,
-        priority,
-        scheduledFor: finalScheduledFor,
-        estimatedHours: estimatedHours ? parseFloat(estimatedHours) : null,
-        category
+          text: text.trim(),
+          description: description.trim(),
+          completed: false,
+          priority,
+          scheduledFor: finalScheduledFor,
+          estimatedHours: estimatedHours ? parseFloat(estimatedHours) : null,
+          category,
       });
 
       // Reset form

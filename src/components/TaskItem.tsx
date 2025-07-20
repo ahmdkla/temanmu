@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Pencil, Trash2, Check, X, Calendar, Clock } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Calendar, Clock, GripVertical } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Task, Category } from '../types/task';
 import { formatDate, formatScheduledDate } from '../utils/dateUtils';
 import { getScheduleOptions, getMinDate } from '../utils/scheduleUtils';
@@ -11,10 +13,11 @@ interface TaskItemProps {
   categories: Category[];
   isEditing: boolean;
   onToggle: (id: number) => void;
-  onDelete: (id: number) => void;
+  onDelete: (task: Task) => void; // Changed to pass task object for confirmation
   onEdit: (id: number, data: Partial<Task>) => void;
   onStartEdit: (id: number) => void;
   onCancelEdit: () => void;
+  isDraggable?: boolean;
 }
 
 export const TaskItem: React.FC<TaskItemProps> = ({
@@ -25,7 +28,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   onDelete,
   onEdit,
   onStartEdit,
-  onCancelEdit
+  onCancelEdit,
+  isDraggable = false,
 }) => {
   const [editText, setEditText] = useState(task.text);
   const [editDescription, setEditDescription] = useState(task.description);
@@ -38,19 +42,37 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const scheduleOptions = getScheduleOptions();
   const currentCategory = categories.find(cat => cat.id === task.category);
 
+  // Drag and drop setup
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: task.id.toString(),
+    disabled: isEditing || !isDraggable, // Disable dragging when editing
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   const handleSave = () => {
-    
     if (editText.trim()) {
-        onEdit(task.id, {
+      onEdit(task.id, {
         text: editText.trim(),
         description: editDescription.trim(),
         priority: editPriority,
         scheduledFor: editScheduledFor || null,
         estimatedHours: editEstimatedHours ? parseFloat(editEstimatedHours) : null,
         category: editCategory
-        });
+      });
     }
-    };
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -62,8 +84,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   };
 
   const handleQuickSchedule = (dateValue: string) => {
-    // Preserve existing time if any, otherwise default to 09:00
-    const currentTime = editScheduledFor.includes('T') ? editScheduledFor.split('T')[1] : '09:00';
+    const currentTime = editScheduledFor?.includes('T') ? editScheduledFor.split('T')[1] : '09:00';
     setEditScheduledFor(`${dateValue}T${currentTime}`);
     setShowCustomDate(false);
   };
@@ -128,46 +149,45 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Schedule</div>
               
               {/* Quick Date Buttons */}
-              {/* Quick Date Buttons */}
-                <div>
+              <div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Quick dates:</div>
                 <div className="flex flex-wrap gap-2">
-                    {scheduleOptions.map(option => (
+                  {scheduleOptions.map(option => (
                     <button
-                        key={option.label}
-                        type="button"
-                        onClick={(e) => {
+                      key={option.label}
+                      type="button"
+                      onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         handleQuickSchedule(option.value);
-                        }}
-                        className={`px-2 py-1 text-xs rounded border transition-colors duration-200 ${
+                      }}
+                      className={`px-2 py-1 text-xs rounded border transition-colors duration-200 ${
                         editScheduledFor.split('T')[0] === option.value
-                            ? 'bg-primary text-white border-primary'
-                            : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
-                        }`}
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
                     >
-                        {option.label}
+                      {option.label}
                     </button>
-                    ))}
-                    <button
+                  ))}
+                  <button
                     type="button"
                     onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setShowCustomDate(!showCustomDate);
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowCustomDate(!showCustomDate);
                     }}
                     className={`px-2 py-1 text-xs rounded border transition-colors duration-200 flex items-center gap-1 ${
-                        showCustomDate
+                      showCustomDate
                         ? 'bg-primary text-white border-primary'
                         : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                     }`}
-                    >
+                  >
                     <Calendar className="w-3 h-3" />
                     Custom
-                    </button>
+                  </button>
                 </div>
-                </div>
+              </div>
 
               {/* Custom Date/Time Pickers */}
               {showCustomDate && (
@@ -262,10 +282,28 @@ export const TaskItem: React.FC<TaskItemProps> = ({
     );
   }
 
-  // Normal view (non-editing)
+  // Normal view (non-editing) with drag & drop
   return (
-    <div className="task-item p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 animate-slideIn">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`task-item p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 animate-slideIn ${
+        isDragging ? 'z-50 shadow-lg' : ''
+      }`}
+    >
       <div className="flex items-start gap-4">
+        {/* Drag Handle */}
+        {isDraggable && (
+          <div
+            {...attributes}
+            {...listeners}
+            className="mt-1 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
+            title="Drag to reorder"
+          >
+            <GripVertical className="w-4 h-4" />
+          </div>
+        )}
+
         <input 
           type="checkbox" 
           className="checkbox-custom mt-1" 
@@ -319,7 +357,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             <Pencil className="w-5 h-5" />
           </button>
           <button 
-            onClick={() => onDelete(task.id)}
+            onClick={() => onDelete(task)} // Pass task object for confirmation
             className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors duration-200 p-2"
             title="Delete task"
           >

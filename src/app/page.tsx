@@ -5,7 +5,7 @@ import { Undo, Redo, Folder } from 'lucide-react';
 import { Auth } from '../components/Auth';
 import { useTaskManager } from '../hooks/useTaskManager';
 import { TaskForm } from '../components/TaskForm';
-import { TaskItem } from '../components/TaskItem';
+import { TaskList } from '../components/TaskList'; // New component
 import { CategoryManager } from '../components/CategoryManager';
 import { FilterType } from '../types/task';
 
@@ -25,6 +25,7 @@ function TaskManagerApp() {
     editTask,
     addCategory,
     deleteCategory,
+    reorderTasks, // New function
     setCurrentFilter,
     setEditingTaskId,
     undo,
@@ -163,34 +164,40 @@ function TaskManagerApp() {
           </div>
         </div>
 
-        {/* Tasks List */}
+        {/* Drag & Drop Instructions */}
+        {tasks.length > 1 && (
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p className="text-sm text-blue-800 dark:text-blue-200 flex items-center gap-2">
+              <span className="text-blue-500">💡</span>
+              <strong>Tip:</strong> Drag tasks by the grip handle (⋮⋮) to reorder them. Your custom order will be saved automatically!
+            </p>
+          </div>
+        )}
+
+        {/* Tasks List with Drag & Drop */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Your Tasks</h2>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+              Your Tasks
+              {tasks.length > 0 && (
+                <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                  ({tasks.length} task{tasks.length !== 1 ? 's' : ''})
+                </span>
+              )}
+            </h2>
           </div>
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {tasks.length === 0 ? (
-              <div className="p-12 text-center text-gray-500 dark:text-gray-400">
-                <div className="text-4xl mb-4">📝</div>
-                <p className="text-lg">No tasks yet</p>
-                <p className="text-sm">Add your first task above to get started!</p>
-              </div>
-            ) : (
-              tasks.map(task => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  categories={categories}
-                  isEditing={editingTaskId === task.id}
-                  onToggle={toggleTask}
-                  onDelete={deleteTask}
-                  onEdit={editTask}
-                  onStartEdit={setEditingTaskId}
-                  onCancelEdit={() => setEditingTaskId(null)}
-                />
-              ))
-            )}
-          </div>
+          
+          <TaskList
+            tasks={tasks}
+            categories={categories}
+            editingTaskId={editingTaskId}
+            onToggle={toggleTask}
+            onDelete={deleteTask}
+            onEdit={editTask}
+            onStartEdit={setEditingTaskId}
+            onCancelEdit={() => setEditingTaskId(null)}
+            onReorder={reorderTasks}
+          />
         </div>
       </main>
     </div>

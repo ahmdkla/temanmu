@@ -1,6 +1,6 @@
 export interface Task {
   id: number;
-  dbId?: string; // Add this for Supabase UUID
+  dbId?: string;
   text: string;
   description: string;
   completed: boolean;
@@ -8,11 +8,12 @@ export interface Task {
   scheduledFor: string | null;
   estimatedHours: number | null;
   category: string;
+  sortOrder: number; // Add this
   createdAt: Date;
 }
 
 export interface HistoryAction {
-  type: 'add' | 'edit' | 'delete' | 'toggle';
+  type: 'add' | 'edit' | 'delete' | 'toggle' | 'reorder'; // Add reorder
   task?: Task;
   taskId?: number;
   position?: number;
@@ -20,6 +21,8 @@ export interface HistoryAction {
   newState?: boolean;
   previousData?: Partial<Task>;
   newData?: Partial<Task>;
+  previousOrder?: number; // For reorder actions
+  newOrder?: number;
 }
 
 export type FilterType = 'all' | 'active' | 'completed' | 'high' | string;

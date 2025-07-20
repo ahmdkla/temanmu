@@ -15,6 +15,7 @@ interface DatabaseTask {
   estimated_hours: number | null;
   category_id: string | null;
   user_id: string;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -63,7 +64,7 @@ export const useTaskManager = () => {
   const convertDbTaskToTask = (dbTask: DatabaseTask): Task => {
     return {
       id: hashStringToNumber(dbTask.id),
-      dbId: dbTask.id, // Keep original UUID
+      dbId: dbTask.id,
       text: dbTask.text,
       description: dbTask.description || '',
       completed: dbTask.completed,
@@ -71,6 +72,7 @@ export const useTaskManager = () => {
       scheduledFor: dbTask.scheduled_for,
       estimatedHours: dbTask.estimated_hours,
       category: dbTask.category_id || 'general',
+      sortOrder: dbTask.sort_order,
       createdAt: new Date(dbTask.created_at),
     };
   };
@@ -90,14 +92,12 @@ export const useTaskManager = () => {
     if (!user) return;
 
     try {
-      // Check if user already has categories
       const { data: existingCategories } = await supabase
         .from('categories')
         .select('id')
         .eq('user_id', user.id)
         .limit(1);
 
-      // If no categories exist, create defaults
       if (!existingCategories || existingCategories.length === 0) {
         const defaultCategories = [
           { name: 'General', color: '#6B7280', user_id: user.id },
@@ -139,7 +139,6 @@ export const useTaskManager = () => {
 
       if (tasksError) throw tasksError;
 
-      // Count tasks per category
       const categoryCounts: Record<string, number> = {};
       tasksData.forEach(task => {
         const categoryId = task.category_id || 'general';
@@ -156,7 +155,7 @@ export const useTaskManager = () => {
     }
   }, [user]);
 
-  // Load tasks
+  // Load tasks with proper sorting
   const loadTasks = useCallback(async () => {
     if (!user) return;
 
@@ -165,7 +164,7 @@ export const useTaskManager = () => {
         .from('tasks')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('sort_order', { ascending: true }); // Sort by sort_order
 
       if (error) throw error;
 
@@ -193,27 +192,32 @@ export const useTaskManager = () => {
     }
   }, [user, createDefaultCategories, loadCategories, loadTasks]);
 
-  // Find task by ID (with proper type assertion)
+  // Find task by ID
   const findTaskById = (id: number): (Task & { dbId: string }) | null => {
     const task = tasks.find(t => t.id === id);
     return task && task.dbId ? task as (Task & { dbId: string }) : null;
   };
 
+  // Get next sort order for new tasks
+  const getNextSortOrder = useCallback(() => {
+    return tasks.length > 0 ? Math.max(...tasks.map(t => t.sortOrder)) + 1 : 0;
+  }, [tasks]);
+
   // Add task
-  const addTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt'>) => {
+  const addTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt' | 'sortOrder'>) => {
     if (!user) return;
 
     try {
-      // Find category ID
       let categoryId = null;
       if (taskData.category && taskData.category !== 'general') {
         const category = categories.find(c => c.id === taskData.category);
         categoryId = category ? category.id : null;
       } else {
-        // Find General category
         const generalCategory = categories.find(c => c.name === 'General');
         categoryId = generalCategory ? generalCategory.id : null;
       }
+
+      const nextSortOrder = getNextSortOrder();
 
       const { data, error } = await supabase
         .from('tasks')
@@ -225,6 +229,7 @@ export const useTaskManager = () => {
           scheduled_for: taskData.scheduledFor,
           estimated_hours: taskData.estimatedHours,
           category_id: categoryId,
+          sort_order: nextSortOrder,
           user_id: user.id,
         })
         .select()
@@ -233,13 +238,87 @@ export const useTaskManager = () => {
       if (error) throw error;
 
       const newTask = convertDbTaskToTask(data);
-      setTasks(prev => [newTask, ...prev]);
-      loadCategories(); // Refresh category counts
+      setTasks(prev => [...prev, newTask].sort((a, b) => a.sortOrder - b.sortOrder));
+      loadCategories();
     } catch (error) {
       console.error('Error adding task:', error);
       alert('Error adding task. Please try again.');
     }
-  }, [user, categories, loadCategories]);
+  }, [user, categories, loadCategories, getNextSortOrder]);
+
+
+  // Get filtered tasks
+  const getFilteredTasks = useCallback(() => {
+    let filtered = tasks;
+    
+    switch (currentFilter) {
+      case 'active':
+        filtered = tasks.filter(t => !t.completed);
+        break;
+      case 'completed':
+        filtered = tasks.filter(t => t.completed);
+        break;
+      case 'high':
+        filtered = tasks.filter(t => t.priority === 'high');
+        break;
+      case 'all':
+        filtered = tasks;
+        break;
+      default:
+        filtered = tasks.filter(t => t.category === currentFilter);
+        break;
+    }
+    
+    return filtered.sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [tasks, currentFilter]);
+
+
+  // Reorder tasks (drag & drop)
+  const reorderTasks = useCallback(async (sourceIndex: number, destinationIndex: number) => {
+    if (!user || sourceIndex === destinationIndex) return;
+
+    try {
+      const filteredTasks = getFilteredTasks();
+      const reorderedTasks = Array.from(filteredTasks);
+      const [removed] = reorderedTasks.splice(sourceIndex, 1);
+      reorderedTasks.splice(destinationIndex, 0, removed);
+
+      // Update sort orders
+      const updates = reorderedTasks.map((task, index) => ({
+        id: (task as Task & { dbId: string }).dbId,
+        sort_order: index
+      }));
+
+      // Update in database
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('tasks')
+          .update({ sort_order: update.sort_order })
+          .eq('user_id', user.id)
+          .eq('id', update.id);
+
+        if (error) throw error;
+      }
+
+      // Update local state
+      setTasks(prev => {
+        const newTasks = [...prev];
+        reorderedTasks.forEach((task, index) => {
+          const taskIndex = newTasks.findIndex(t => t.id === task.id);
+          if (taskIndex !== -1) {
+            newTasks[taskIndex] = { ...newTasks[taskIndex], sortOrder: index };
+          }
+        });
+        return newTasks.sort((a, b) => a.sortOrder - b.sortOrder);
+      });
+
+    } catch (error) {
+      console.error('Error reordering tasks:', error);
+      alert('Error reordering tasks. Please try again.');
+      // Reload tasks to restore correct order
+      loadTasks();
+    }
+  }, [user, getFilteredTasks, loadTasks]);
 
   // Toggle task
   const toggleTask = useCallback(async (id: number) => {
@@ -279,7 +358,7 @@ export const useTaskManager = () => {
       if (error) throw error;
 
       setTasks(prev => prev.filter(t => t.id !== id));
-      loadCategories(); // Refresh category counts
+      loadCategories();
     } catch (error) {
       console.error('Error deleting task:', error);
       alert('Error deleting task. Please try again.');
@@ -292,13 +371,11 @@ export const useTaskManager = () => {
     if (!task || !user) return;
 
     try {
-      // Find category ID
       let categoryId = null;
       if (newData.category && newData.category !== 'general') {
         const category = categories.find(c => c.id === newData.category);
         categoryId = category ? category.id : null;
       } else {
-        // Find General category
         const generalCategory = categories.find(c => c.name === 'General');
         categoryId = generalCategory ? generalCategory.id : null;
       }
@@ -318,18 +395,13 @@ export const useTaskManager = () => {
         .eq('user_id', user.id)
         .eq('id', task.dbId);
 
-      if (error) {
-        console.error('Supabase update error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      // Update local state
       setTasks(prev => prev.map(t => 
         t.id === id ? { ...t, ...newData } : t
       ));
       
-      loadCategories(); // Refresh category counts
-      console.log('Task updated successfully'); // Debug log
+      loadCategories();
     } catch (error) {
       console.error('Error editing task:', error);
       alert('Error updating task. Please try again.');
@@ -362,61 +434,81 @@ export const useTaskManager = () => {
     }
   }, [user]);
 
-  // Delete category
-  const deleteCategory = useCallback(async (categoryId: string) => {
-    if (!user) return;
+  // Delete category (unchanged from previous implementation)
+  const deleteCategory = useCallback(async (categoryId: string, moveTasksToGeneral: boolean = false): Promise<boolean> => {
+    if (!user) return false;
 
     try {
-      // First update all tasks to use 'General' category
       const generalCategory = categories.find(cat => cat.name === 'General');
-      if (generalCategory) {
-        await supabase
+      if (!generalCategory) {
+        alert('Error: General category not found. Cannot proceed with deletion.');
+        return false;
+      }
+
+      if (categoryId === generalCategory.id) {
+        alert('The General category cannot be deleted.');
+        return false;
+      }
+
+      const { data: tasksWithCategory, error: countError } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('category_id', categoryId);
+
+      if (countError) throw countError;
+
+      const taskCount = tasksWithCategory?.length || 0;
+
+      if (taskCount > 0 && !moveTasksToGeneral) {
+        alert(`Cannot delete category. It has ${taskCount} active task${taskCount !== 1 ? 's' : ''}. Please move or delete these tasks first.`);
+        return false;
+      }
+
+      if (taskCount > 0 && moveTasksToGeneral) {
+        const { error: moveError } = await supabase
           .from('tasks')
           .update({ category_id: generalCategory.id })
           .eq('user_id', user.id)
           .eq('category_id', categoryId);
+
+        if (moveError) {
+          console.error('Error moving tasks:', moveError);
+          alert('Error moving tasks to General category. Please try again.');
+          return false;
+        }
       }
 
-      // Then delete the category
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from('categories')
         .delete()
         .eq('user_id', user.id)
         .eq('id', categoryId);
 
-      if (error) throw error;
+      if (deleteError) {
+        console.error('Error deleting category:', deleteError);
+        alert('Error deleting category. Please try again.');
+        return false;
+      }
 
       setCategories(prev => prev.filter(cat => cat.id !== categoryId));
-      loadTasks(); // Refresh tasks
-    } catch (error) {
-      console.error('Error deleting category:', error);
-    }
-  }, [user, categories, loadTasks]);
+      
+      if (taskCount > 0 && moveTasksToGeneral) {
+        setTasks(prev => prev.map(task => 
+          task.category === categoryId ? { ...task, category: generalCategory.id } : task
+        ));
+      }
+      
+      loadCategories();
+      loadTasks();
 
-  // Get filtered tasks
-  const getFilteredTasks = useCallback(() => {
-    let filtered = tasks;
-    
-    switch (currentFilter) {
-      case 'active':
-        filtered = tasks.filter(t => !t.completed);
-        break;
-      case 'completed':
-        filtered = tasks.filter(t => t.completed);
-        break;
-      case 'high':
-        filtered = tasks.filter(t => t.priority === 'high');
-        break;
-      case 'all':
-        filtered = tasks;
-        break;
-      default:
-        filtered = tasks.filter(t => t.category === currentFilter);
-        break;
+      return true;
+    } catch (error) {
+      console.error('Error in deleteCategory:', error);
+      alert('An unexpected error occurred. Please try again.');
+      return false;
     }
-    
-    return filtered;
-  }, [tasks, currentFilter]);
+  }, [user, categories, loadCategories, loadTasks]);
 
   const stats = {
     total: tasks.length,
@@ -440,6 +532,7 @@ export const useTaskManager = () => {
     editTask,
     addCategory,
     deleteCategory,
+    reorderTasks, // New function
     setCurrentFilter,
     setEditingTaskId,
     undo: () => {},
