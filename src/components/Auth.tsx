@@ -71,11 +71,19 @@ export const Auth: React.FC<AuthProps> = ({ children }) => {
         });
         if (error) throw error;
       }
-    } catch (error: any) {
-      alert(error.error_description || error.message);
-    } finally {
-      setAuthLoading(false);
-    }
+    } catch (error: unknown) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          ('error_description' in error || 'message' in error)
+        ) {
+          const err = error as { error_description?: string; message?: string };
+          alert(err.error_description || err.message || 'Unknown error');
+        } else {
+          alert('Unknown error occurred');
+        }
+      }
+
   };
 
   const handleSignOut = async () => {

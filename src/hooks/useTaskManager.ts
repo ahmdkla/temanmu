@@ -1,5 +1,6 @@
 "use client";
 
+import dayjs from "dayjs";
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
@@ -27,6 +28,37 @@ interface DatabaseCategory {
   user_id: string;
   created_at: string;
 }
+    const normalizeNullable = <T>(value: T | undefined): T | null => {
+    return value === undefined ? null : value;
+    };
+
+    // Simple hash function to convert UUID to number for compatibility
+    const hashStringToNumber = (str: string): number => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+        }
+        return Math.abs(hash);
+    };
+
+    // Convert database task to app task
+    const convertDbTaskToTask = (dbTask: DatabaseTask): Task => {
+        return {
+        id: hashStringToNumber(dbTask.id),
+        dbId: dbTask.id,
+        text: dbTask.text,
+        description: dbTask.description || '',
+        completed: dbTask.completed,
+        priority: dbTask.priority,
+        scheduledFor: normalizeNullable(dbTask.scheduled_for),
+        estimatedHours: normalizeNullable(dbTask.estimated_hours),
+        category: dbTask.category_id || 'general',
+        sortOrder: dbTask.sort_order,
+        createdAt: new Date(dbTask.created_at),
+        };
+    };
 
 export const useTaskManager = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -48,34 +80,6 @@ export const useTaskManager = () => {
 
     return () => subscription.unsubscribe();
   }, []);
-
-  // Simple hash function to convert UUID to number for compatibility
-  const hashStringToNumber = (str: string): number => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return Math.abs(hash);
-  };
-
-  // Convert database task to app task
-  const convertDbTaskToTask = (dbTask: DatabaseTask): Task => {
-    return {
-      id: hashStringToNumber(dbTask.id),
-      dbId: dbTask.id,
-      text: dbTask.text,
-      description: dbTask.description || '',
-      completed: dbTask.completed,
-      priority: dbTask.priority,
-      scheduledFor: dbTask.scheduled_for,
-      estimatedHours: dbTask.estimated_hours,
-      category: dbTask.category_id || 'general',
-      sortOrder: dbTask.sort_order,
-      createdAt: new Date(dbTask.created_at),
-    };
-  };
 
   // Convert database category to app category
   const convertDbCategoryToCategory = (dbCategory: DatabaseCategory, taskCount: number): Category => {
@@ -193,10 +197,14 @@ export const useTaskManager = () => {
   }, [user, createDefaultCategories, loadCategories, loadTasks]);
 
   // Find task by ID
-  const findTaskById = (id: number): (Task & { dbId: string }) | null => {
+  const findTaskById = useCallback(
+  (id: number): (Task & { dbId: string }) | null => {
     const task = tasks.find(t => t.id === id);
     return task && task.dbId ? task as (Task & { dbId: string }) : null;
-  };
+  },
+  [tasks] // ✅ dependency added
+);
+
 
   // Get next sort order for new tasks
   const getNextSortOrder = useCallback(() => {
@@ -216,6 +224,12 @@ export const useTaskManager = () => {
         const generalCategory = categories.find(c => c.name === 'General');
         categoryId = generalCategory ? generalCategory.id : null;
       }
+    
+        const scheduledFor = (() => {
+        if (!taskData.scheduledFor) return null;
+        const parsed = dayjs(taskData.scheduledFor);
+        return parsed.isValid() ? parsed.toISOString() : null;
+        })();
 
       const nextSortOrder = getNextSortOrder();
 
@@ -226,8 +240,8 @@ export const useTaskManager = () => {
           description: taskData.description || null,
           completed: false,
           priority: taskData.priority,
-          scheduled_for: taskData.scheduledFor,
-          estimated_hours: taskData.estimatedHours,
+          scheduled_for: scheduledFor,
+          estimated_hours: normalizeNullable(taskData.estimatedHours),
           category_id: categoryId,
           sort_order: nextSortOrder,
           user_id: user.id,
@@ -235,7 +249,9 @@ export const useTaskManager = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error){console.error("Supabase insert error:", error); // <-- this is where the real error comes
+    alert("Error adding task: " + error.message);    // Optional: display it
+    return;};
 
       const newTask = convertDbTaskToTask(data);
       setTasks(prev => [...prev, newTask].sort((a, b) => a.sortOrder - b.sortOrder));
@@ -341,7 +357,7 @@ export const useTaskManager = () => {
       console.error('Error toggling task:', error);
       alert('Error updating task. Please try again.');
     }
-  }, [tasks, user]);
+  }, [ user, findTaskById]);
 
   // Delete task
   const deleteTask = useCallback(async (id: number) => {
@@ -363,7 +379,7 @@ export const useTaskManager = () => {
       console.error('Error deleting task:', error);
       alert('Error deleting task. Please try again.');
     }
-  }, [tasks, user, loadCategories]);
+  }, [user, loadCategories, findTaskById]);
 
   // Edit task
   const editTask = useCallback(async (id: number, newData: Partial<Task>) => {
@@ -384,8 +400,8 @@ export const useTaskManager = () => {
         text: newData.text,
         description: newData.description || null,
         priority: newData.priority,
-        scheduled_for: newData.scheduledFor,
-        estimated_hours: newData.estimatedHours,
+        scheduled_for: normalizeNullable(newData.scheduledFor),
+        estimated_hours: normalizeNullable(newData.estimatedHours),
         category_id: categoryId,
       };
 
@@ -407,7 +423,7 @@ export const useTaskManager = () => {
       alert('Error updating task. Please try again.');
     }
     setEditingTaskId(null);
-  }, [tasks, user, loadCategories, categories]);
+  }, [user, loadCategories, categories, findTaskById]);
 
   // Add category
   const addCategory = useCallback(async (name: string, color: string) => {

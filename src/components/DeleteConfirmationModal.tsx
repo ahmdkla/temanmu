@@ -42,7 +42,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
               Task to delete:
             </p>
             <p className="text-gray-600 dark:text-gray-400">
-              "{task.text}"
+              &quot;{task.text}&quot;
             </p>
             {task.description && (
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">

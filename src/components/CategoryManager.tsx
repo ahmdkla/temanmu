@@ -45,7 +45,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         
         <div className="mb-6">
           <p className="text-gray-600 dark:text-gray-400 mb-3">
-            You're about to delete the category "<strong>{category.name}</strong>".
+            You&apos;re about to delete the category &quot;<strong>{category.name}</strong>&quot;.
           </p>
           
           {hasActiveTasks ? (
@@ -73,7 +73,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                 onClick={() => onConfirm(true)}
                 className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors duration-200"
               >
-                Move {category.count} task{category.count !== 1 ? 's' : ''} to "General" and delete category
+                Move {category.count} task{category.count !== 1 ? 's' : ''} to &quot;General&quot; and delete category
               </button>
               <button
                 onClick={onCancel}

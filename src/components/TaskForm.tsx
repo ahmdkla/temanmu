@@ -4,7 +4,7 @@ import customParseFormat from 'dayjs/plugin/customParseFormat';
 import React, { useState } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { Task, Category } from '../types/task';
-import { getScheduleOptions, getMinDate, getMinDateTime } from '../utils/scheduleUtils';
+import { getScheduleOptions, getMinDate } from '../utils/scheduleUtils';
 dayjs.extend(customParseFormat);
 
 interface TaskFormProps {
@@ -24,7 +24,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({ categories, onAddTask }) => 
 
   const scheduleOptions = getScheduleOptions();
   const minDate = getMinDate();
-  const minDateTime = getMinDateTime();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

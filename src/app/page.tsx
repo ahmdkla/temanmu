@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Undo, Redo, Folder } from 'lucide-react';
+import { Folder } from 'lucide-react';
 import { Auth } from '../components/Auth';
 import { useTaskManager } from '../hooks/useTaskManager';
 import { TaskForm } from '../components/TaskForm';
@@ -17,8 +17,6 @@ function TaskManagerApp() {
     editingTaskId,
     stats,
     loading,
-    canUndo,
-    canRedo,
     addTask,
     toggleTask,
     deleteTask,
@@ -28,8 +26,6 @@ function TaskManagerApp() {
     reorderTasks, // New function
     setCurrentFilter,
     setEditingTaskId,
-    undo,
-    redo
   } = useTaskManager();
 
   const [showCategoryManager, setShowCategoryManager] = useState(false);
