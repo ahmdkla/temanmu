@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
+import React from 'react';
 
 interface AuthProps {
   children: React.ReactNode;
@@ -16,6 +17,25 @@ export const Auth: React.FC<AuthProps> = ({ children }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
 
+// Dark mode setup
+  useEffect(() => {
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+    
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+  
   useEffect(() => {
     // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session } }) => {

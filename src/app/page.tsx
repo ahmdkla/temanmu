@@ -76,8 +76,8 @@ function TaskManagerApp() {
       {/* Header */}
       <header className="bg-primary dark:bg-primary-dark shadow-lg">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-white">Task Manager</h1>
-          <p className="text-purple-100 mt-2">Stay organized and productive</p>
+          <h1 className="text-3xl font-bold text-white">Temanmu</h1>
+          <p className="text-purple-100 mt-2">Hadir untuk membantu harimu lebih teratur, jadwalkan kegiatan, dan kelola produktivitasmu dengan mudah dalam satu aplikasi.</p>
         </div>
       </header>
 
