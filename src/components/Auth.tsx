@@ -140,7 +140,6 @@ export const Auth: React.FC<AuthProps> = ({ children }) => {
               
               <button
                 type="submit"
-                disabled={authLoading}
                 className="w-full px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors duration-200 disabled:opacity-50"
               >
                 {authLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
